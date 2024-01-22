@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import json
@@ -17,10 +19,15 @@ UESAVE_TYPE_MAPS = [
 ]
 
 
-def main():
-    if len(sys.argv) < 4:
-        print("fix-host-save.py <uesave.exe> <save_path> <host_guid>")
-        exit(1)
+def print_error(*args, **kwargs) -> int:
+    kwargs["file"] = sys.stderr
+    print(*args, **kwargs)
+    return 1
+
+
+def main() -> int:
+    if len(sys.argv) != 4:
+        return print_error("fix-host-save.py <uesave.exe> <save_path> <host_guid>")
 
     # Warn the user about potential data loss.
     print(
@@ -33,13 +40,12 @@ of your save folder before continuing. Press enter if you would like to continue
     try:
         uesave_path = Path(sys.argv[1]).resolve(strict=True)  # strict will also check existence of the path
     except FileNotFoundError as exc:
-        print(f"ERROR in uesave_path arg, path does not exist: '{exc.filename}'")
-        exit(1)
+        return print_error(f"ERROR in <uesave_path> arg, path does not exist: '{exc.filename}'")
 
     try:
         save_path = Path(sys.argv[2]).resolve(strict=True)
     except FileNotFoundError as exc:
-        print(f"ERROR in save_path arg, path does not exist: '{exc.filename}'")
+        return print_error(f"ERROR in <save_path> arg, path does not exist: '{exc.filename}'")
 
     host_guid = sys.argv[3]
     if len(host_guid) != 32:
@@ -63,28 +69,26 @@ of your save folder before continuing. Press enter if you would like to continue
     # uesave_path must point directly to the executable, not just the path it is located in.
     # the .exists() check is extraneous as .resolve(strict) already checks if the path exists
     if not uesave_path.exists() or not uesave_path.is_file():
-        print(
-            'ERROR: Your given <uesave_path> of "'
-            + str(uesave_path)
-            + '" is invalid. It must point directly to the executable. For example: C:\\Users\\Bob\\.cargo\\bin\\uesave.exe'
+        return print_error(
+            f'ERROR: Your given <uesave_path> of "{uesave_path}" is invalid.\n'
+            "It must point directly to the executable. For example: C:\\Users\\Bob\\.cargo\\bin\\uesave.exe"
         )
-        exit(1)
 
     # save_path must exist in order to use it.
     if not save_path.exists():
-        print(
-            'ERROR: Your given <save_path> of "'
-            + str(save_path)
-            + '" does not exist. Did you enter the correct path to your save folder?'
+        return print_error(
+            f'ERROR: Your given <save_path> of "{save_path}" does not exist.\n'
+            "Did you enter the correct path to your save folder?"
         )
-        exit(1)
 
     # The co-op host needs to have created a character on the dedicated server and that save is used for this script.
     if not host_new_sav_path.exists():
         print(
-            'ERROR: Your co-op host\'s player save does not exist. Did you enter the correct GUID of your co-op host? It should look like "8E910AC2000000000000000000000000".\nDid your host create their character with the provided save? Once they create their character, a file called "'
-            + str(host_new_sav_path)
-            + '" should appear. Refer to steps 4&5 of the README.'
+            "ERROR: Your co-op host's player save does not exist.\n"
+            'Did you enter the correct GUID of your co-op host? It should look like "8E910AC2000000000000000000000000".'
+            "\nDid your host create their character with the provided save?"
+            f'Once they create their character, a file called "{host_new_sav_path}" should appear.'
+            "Refer to steps 4&5 of the README."
         )
         exit(1)
 
@@ -211,7 +215,7 @@ def sav_to_json(uesave_path: Path, file: Path):
         print(f"File {file} (type: {save_type}) converted to JSON successfully")
 
 
-def json_to_sav(uesave_path, file):
+def json_to_sav(uesave_path, file: Path):
     # Convert the file back to binary
     gvas_file = file.with_suffix(".sav.gvas")
     sav_file = file.replace(".sav")
@@ -239,6 +243,7 @@ def json_to_sav(uesave_path, file):
             f.write(bytes([save_type]))
             f.write(bytes(compressed_data))
     print(f"Converted {file} to {sav_file}")
+    return 0
 
 
 def clean_up_files(file: Path):
@@ -272,4 +277,4 @@ def uesave_from_json_params(uesave_path, input_file, output_file):
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())
